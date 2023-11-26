@@ -62,6 +62,16 @@ test("All URL's converted to Absolute and all Tags Found", () => {
 });
 
 
+test("No 'a's so empty Array", () => {
+    const html =   ''
+    const baseURL = 'http://baseurl.com';  // Your base URL
+    const expectedOutput = [];
+    const output = getURLsFromHTML(html, baseURL);  // Run your function
+
+    // Now you should check whether output is the same as expectedOutput
+    expect(output).toEqual(expectedOutput); 
+});
+
 
 
 
