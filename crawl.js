@@ -1,3 +1,4 @@
+const { response } = require('express');
 const { JSDOM } = require('jsdom')
 /*
     Using Node URL we can parse the different sections 
@@ -59,8 +60,33 @@ function getURLsFromHTML(htmlBody, baseURL) {
 }
 
 
+/* 
+    Crawling web pages 
+*/
+
+async function crawlPage(baseURL) {
+    try {
+    const response = await fetch(baseURL);
+    // Checking HTTP Error
+    if (response.status >= 400)
+        return console.log(`Error: Response received a ${response.status}`)
+    // Checking Proper Content-Type
+    if (!response.headers.get('Content-Type').includes('text/html')) 
+        return console.log(`Error: Not Response not text/html, format is ${response.headers.get('Content-Type')}`);
+    // Return the Body Text
+    return await response.text();    
+
+    } catch (err) {
+        console.log(err); 
+    }
+}
+
+
+
+
 // Used to export this function for testing with Jest
 module.exports = {
     normalizeURL,
-    getURLsFromHTML
+    getURLsFromHTML,
+    crawlPage
 }
