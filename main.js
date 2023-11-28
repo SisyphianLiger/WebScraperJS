@@ -1,7 +1,8 @@
 const { argv, exit } = require('node:process');
 const { crawlPage } = require('./crawl');
+const { printReport } = require('./report');
 
-function main() {
+async function main() {
     /*
         We check if for valid input, i.e. the user has entered
         node source.js baseURl
@@ -22,8 +23,7 @@ function main() {
 
     console.log(`baseURl ${argv[2]} accepted, commencing Webcrawler`);
     console.log();
-
-    crawlPage(argv[2]);
+    printReport( (await crawlPage(argv[2], argv[2], {})) );
 }
 main()
 

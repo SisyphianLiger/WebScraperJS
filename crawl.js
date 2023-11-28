@@ -1,42 +1,20 @@
-const { response } = require('express');
 const { JSDOM } = require('jsdom')
 /*
     Using Node URL we can parse the different sections 
     of the String coming in to verify it's a valid URL
-*/
+*
+    */
 
 function normalizeURL(urlString) {
 
-    try {
 
         // Parse urlString to URL
-        const checkURL = new URL(urlString);
-        // Put Generate A return URL 
-        const correctURL =  checkURL.username + 
-            checkURL.password + 
-            checkURL.host + 
-            checkURL.pathname;
-        console.log(correctURL)
-        if (checkURL.protocol  === "https://"){
+        const checkURL = new URL(urlString); // Put Generate A return URL 
+        let correctURL =   checkURL.host + checkURL.pathname;
        
-            if (checkURL.pathname.endsWith("/")) 
-                return correctURL.substring(0, correctURL.length-1);
-            else 
-                return correctURL;
-        }
-
-        if (checkURL.protocol  === "http://"){
-            if (checkURL.pathname.endsWith("/")) 
-                return correctURL.substring(0, correctURL.length-1);
-            else 
-                return correctURL;
-        }
-    }
-
-    catch (error) {
-        console.log(error);
-        throw error;
-    }
+            if (correctURL.length > 0 && correctURL.endsWith("/")) 
+                    correctURL = correctURL.slice(0, -1);
+        return correctURL;
 }
     
 /*
@@ -50,10 +28,10 @@ function getURLsFromHTML(htmlBody, baseURL) {
    const aRefList = Array.from(aRefs); 
   
     const aHrefList = aRefList.map(function(x) {
-            if (x.href.includes(baseURL))
-                return x.href
-            else
+            if (x.href.startsWith('/'))
                 return baseURL + x.href
+            else
+                return x.href
     });
     
    return aHrefList
@@ -66,42 +44,57 @@ function getURLsFromHTML(htmlBody, baseURL) {
 
 async function crawlPage(baseURL, currentURL, pages) {
     try {
-    // 1. Make sure currentURL is on same domain as baseURL
-    if (!currentURL.includes(baseURL))
-        return pages
-
-    /*
-        3.  If the pages object already has an entry for the normalized version 
-            of the current URL, just increment the count and return the current 
-            pages.
+        // 1. Make sure currentURL is on same domain as baseURL
+        if (!currentURL.includes(baseURL)) {
+            return pages;
+        }
+        // check if currentURL is same domain as baseURL
     
-    */
-            // 2. Get normalizeURL of currentURL
+
+        // 2. Get normalizeURL of currentURL
         const norm_URL = normalizeURL(currentURL);
-    if (!pages[norm_URL] === undefined) {
-        count += 1;
-        return pages
-    } else 
-        pages[norm_URL] = response.text();
+        /*
+            3 - 4
+        */
+            
+        if (pages[norm_URL] === undefined) {
+            if(currentURL !== baseURL) 
+                pages[norm_URL] = 1;
+            else 
+                pages[baseURL] = 0; 
+        } else {
+            pages[norm_URL]++;
+            return pages;
+        }
+
+        // 5  request currentURL
+        const response = await fetch(currentURL);
 
 
-    // check if currentURL is same domain as baseURL
-    const response = await fetch(baseURL);
+        // Checking HTTP Error
+        if (response.status > 399) {
+            console.log(`Error: Response received a ${response.status}`);
+        }
+        // Checking Proper Content-Type
+        if (!response.headers.get('Content-Type').includes('text/html')) {
+            console.log(`Error: Not Response not text/html, format is ${response.headers.get('Content-Type')}`);
+        }
 
+        
+        // 6 Rip all 'a's
+        const  extract_URLs = getURLsFromHTML(await response.text(), baseURL);
 
+        const promises = extract_URLs.map(aRefURL => {
+            return crawlPage(baseURL, aRefURL, pages);
+        });
+      
+        await Promise.all(promises).then (pagesArray => {
+            pagesArray.forEach(pageRes=> {    
+                    Object.assign(pages,pageRes)
+            });
+        });
 
-    // Checking HTTP Error
-    if (response.status > 399) {
-        console.log(`Error: Response received a ${response.status}`);
-        return
-    }
-    // Checking Proper Content-Type
-    if (!response.headers.get('Content-Type').includes('text/html')) {
-        console.log(`Error: Not Response not text/html, format is ${response.headers.get('Content-Type')}`);
-        return
-    }
-    // Return the Body Text
-    console.log(await response.text());
+        return pages;
 
     } catch (err) {
         console.log(err.message); 
